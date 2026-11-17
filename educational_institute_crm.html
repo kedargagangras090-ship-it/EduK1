@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduInstitute CRM - Professional Management Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN for Dashboard Pie Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase JavaScript Client SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+
+    <!-- Notification Toast Modal (Replacement for alert) -->
+    <div id="toast" class="fixed top-5 right-5 z-50 hidden bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 transition-all duration-300">
+        <span id="toast-message">Notification message here</span>
+        <button onclick="hideToast()" class="text-slate-400 hover:text-white">&times;</button>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-slate-900 text-white hidden md:flex flex-col p-6 shadow-xl">
+            <div class="flex items-center space-x-3 mb-10 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="bg-blue-600 p-2.5 rounded-xl text-white font-bold text-xl">Edu</div>
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight">EduCRM</h2>
+                    <p class="text-xs text-slate-400">Institute Management</p>
+                </div>
+            </div>
+            
+            <nav class="space-y-2 flex-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full text-left py-3 px-4 rounded-xl bg-blue-600 text-white font-medium flex items-center space-x-3 transition shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('leads')" id="nav-leads" class="w-full text-left py-3 px-4 rounded-xl text-slate-300 hover:bg-slate-800 font-medium flex items-center space-x-3 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    <span>Leads (Free Course)</span>
+                </button>
+                <button onclick="switchTab('students')" id="nav-students" class="w-full text-left py-3 px-4 rounded-xl text-slate-300 hover:bg-slate-800 font-medium flex items-center space-x-3 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+                    <span>Students & Fee Tracker</span>
+                </button>
+            </nav>
+
+            <div class="pt-6 border-t border-slate-800 text-xs text-slate-400">
+                <p>Status: <span id="connection-status" class="text-amber-400 font-semibold">Demo Mode</span></p>
+                <button onclick="openConfigModal()" class="mt-2 text-blue-400 hover:underline">Configure Supabase</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto flex flex-col">
+            <!-- Top Navbar -->
+            <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shadow-xs">
+                <div>
+                    <h1 id="page-title" class="text-2xl font-bold text-slate-800">Institute Dashboard</h1>
+                    <p class="text-sm text-slate-500">Welcome back! Here is your institute's latest performance overview.</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshData()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition flex items-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <span>Refresh Data</span>
+                    </button>
+                    <div class="w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center shadow-md">
+                        AD
+                    </div>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Container -->
+            <div class="p-8 space-y-8 flex-1">
+
+                <!-- TAB 1: DASHBOARD LANDING PAGE -->
+                <section id="tab-dashboard" class="space-y-8">
+                    <!-- Quick Navigation Cards -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Quick Navigation Links</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div onclick="switchTab('leads')" class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer transition group">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    </div>
+                                    <span class="text-blue-600 text-sm font-semibold flex items-center">Open &rarr;</span>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-800 mb-1">Leads Database</h4>
+                                <p class="text-slate-500 text-sm">Manage free course sign-ups, candidate contact info, date of birth, and occupation.</p>
+                            </div>
+
+                            <div onclick="switchTab('students')" class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 hover:border-emerald-500 hover:shadow-md cursor-pointer transition group">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-emerald-600 group-hover:text-white transition">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zM12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
+                                    </div>
+                                    <span class="text-emerald-600 text-sm font-semibold flex items-center">Open &rarr;</span>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-800 mb-1">Students & Fee Tracker</h4>
+                                <p class="text-slate-500 text-sm">Track admitted students, paid tuition fees, and monitor remaining fee balances.</p>
+                            </div>
+
+                            <div onclick="switchTab('dashboard')" class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 hover:border-indigo-500 hover:shadow-md cursor-pointer transition group">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                                    </div>
+                                    <span class="text-indigo-600 text-sm font-semibold">Active View</span>
+                                </div>
+                                <h4 class="text-lg font-bold text-slate-800 mb-1">Revenue Records</h4>
+                                <p class="text-slate-500 text-sm">Review conversion rates, total revenue collection, and month-to-month metrics below.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary Stat Cards & Pie Chart Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Stat Cards Column -->
+                        <div class="space-y-6 flex flex-col justify-between">
+                            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 flex items-center space-x-4">
+                                <div class="p-4 bg-blue-50 text-blue-600 rounded-2xl">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Free Course Leads</p>
+                                    <h3 id="stat-leads" class="text-3xl font-bold text-slate-800">0</h3>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 flex items-center space-x-4">
+                                <div class="p-4 bg-emerald-50 text-emerald-600 rounded-2xl">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Converted Students</p>
+                                    <h3 id="stat-students" class="text-3xl font-bold text-slate-800">0</h3>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200 flex items-center space-x-4">
+                                <div class="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-slate-500">Total Revenue Collected</p>
+                                    <h3 id="stat-revenue" class="text-2xl font-bold text-slate-800">₹0</h3>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pie Chart Card -->
+                        <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xs border border-slate-200 flex flex-col items-center justify-center">
+                            <div class="w-full flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold text-slate-800">Lead-to-Student Conversion Ratio</h3>
+                                <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">Real-time Analytics</span>
+                            </div>
+                            <div class="w-full max-w-xs h-64 flex items-center justify-center">
+                                <canvas id="conversionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: LEADS (FREE COURSE) DATABASE -->
+                <section id="tab-leads" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800">Free Course Leads Database</h3>
+                                <p class="text-sm text-slate-500">List of all candidates who registered for free trial courses.</p>
+                            </div>
+                            <button onclick="openAddLeadModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-xs transition flex items-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add New Lead</span>
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                                        <th class="p-4">Candidate Name</th>
+                                        <th class="p-4">Phone Number</th>
+                                        <th class="p-4">Email Address</th>
+                                        <th class="p-4">Address</th>
+                                        <th class="p-4">Date of Birth</th>
+                                        <th class="p-4">Occupation</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leadsTableBody" class="text-slate-700 text-sm divide-y divide-slate-100">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: STUDENTS & FEE TRACKER -->
+                <section id="tab-students" class="hidden space-y-6">
+                    <div class="bg-white p-6 rounded-2xl shadow-xs border border-slate-200">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-800">Admissions & Fee Tracker</h3>
+                                <p class="text-sm text-slate-500">Record of students who converted from leads to paid admissions.</p>
+                            </div>
+                            <button onclick="openAddStudentModal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl shadow-xs transition flex items-center space-x-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add Student Admission</span>
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-semibold uppercase tracking-wider">
+                                        <th class="p-4">Student Name</th>
+                                        <th class="p-4">Contact Info</th>
+                                        <th class="p-4">Enrolled Course</th>
+                                        <th class="p-4">Total Course Fee</th>
+                                        <th class="p-4">Paid Fee</th>
+                                        <th class="p-4">Remaining Fee</th>
+                                        <th class="p-4">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTableBody" class="text-slate-700 text-sm divide-y divide-slate-100">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Adding Lead -->
+    <div id="leadModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <h3 class="text-xl font-bold text-slate-800">Add New Free Course Lead</h3>
+            <form id="leadForm" onsubmit="handleLeadSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Full Name</label>
+                    <input type="text" id="leadName" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Phone Number</label>
+                    <input type="tel" id="leadPhone" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email ID</label>
+                    <input type="email" id="leadEmail" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Address</label>
+                    <input type="text" id="leadAddress" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Date of Birth</label>
+                        <input type="date" id="leadDob" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Occupation</label>
+                        <input type="text" id="leadOccupation" placeholder="e.g. Student" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeLeadModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl">Save Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding Student Admission -->
+    <div id="studentModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <h3 class="text-xl font-bold text-slate-800">Add Student Admission & Fees</h3>
+            <form id="studentForm" onsubmit="handleStudentSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Student Name</label>
+                    <input type="text" id="studentName" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Phone Number</label>
+                    <input type="tel" id="studentPhone" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Course Enrolled</label>
+                    <input type="text" id="studentCourse" placeholder="e.g. Full Stack Web Development" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Total Fee (₹)</label>
+                        <input type="number" id="studentTotalFee" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Paid Fee (₹)</label>
+                        <input type="number" id="studentPaidFee" required class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeStudentModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl">Save Admission</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Supabase Configuration -->
+    <div id="configModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <h3 class="text-xl font-bold text-slate-800">Connect Supabase Database</h3>
+            <p class="text-sm text-slate-500">Enter your Supabase URL and Anon Key to link your live cloud database.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Supabase URL</label>
+                    <input type="text" id="configUrl" placeholder="https://xyz.supabase.co" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Supabase Anon Key</label>
+                    <input type="password" id="configKey" placeholder="eyJhbGciOi..." class="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm outline-none">
+                </div>
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button onclick="closeConfigModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button onclick="saveSupabaseConfig()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl">Connect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic Script -->
+    <script>
+        // Supabase Client Initialization
+        let supabaseClient = null;
+        let isCloudConnected = false;
+
+        // Default Mock Data for Demonstration / Offline Mode
+        let mockLeads = [
+            { name: "Rahul Sharma", phone: "+91 98765 43210", email: "rahul@example.com", address: "Mumbai, Maharashtra", dob: "1998-05-12", occupation: "Student" },
+            { name: "Priya Patel", phone: "+91 91234 56789", email: "priya@example.com", address: "Ahmedabad, Gujarat", dob: "2000-08-22", occupation: "Job Seeker" },
+            { name: "Amit Kumar", phone: "+91 99887 76655", email: "amit@example.com", address: "Delhi NCR", dob: "1995-11-03", occupation: "Working Professional" }
+        ];
+
+        let mockStudents = [
+            { name: "Sneha Reddy", phone: "+91 98111 22334", course: "Full Stack Web Development", total_fee: 35000, paid_fee: 35000 },
+            { name: "Vikram Malhotra", phone: "+91 97222 33445", course: "Data Science & AI", total_fee: 50000, paid_fee: 25000 },
+            { name: "Ananya Gupta", phone: "+91 96333 44556", course: "UI/UX Design Masterclass", total_fee: 25000, paid_fee: 15000 }
+        ];
+
+        // Initialize Chart.js Pie Chart
+        const ctx = document.getElementById('conversionChart').getContext('2d');
+        const conversionChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['Free Course Leads', 'Converted Students'],
+                datasets: [{
+                    data: [0, 0],
+                    backgroundColor: ['#3b82f6', '#10b981'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, font: { family: 'Inter', size: 12 } }
+                    }
+                }
+            }
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabName) {
+            document.getElementById('tab-dashboard').classList.add('hidden');
+            document.getElementById('tab-leads').classList.add('hidden');
+            document.getElementById('tab-students').classList.add('hidden');
+
+            document.getElementById('nav-dashboard').className = 'w-full text-left py-3 px-4 rounded-xl text-slate-300 hover:bg-slate-800 font-medium flex items-center space-x-3 transition';
+            document.getElementById('nav-leads').className = 'w-full text-left py-3 px-4 rounded-xl text-slate-300 hover:bg-slate-800 font-medium flex items-center space-x-3 transition';
+            document.getElementById('nav-students').className = 'w-full text-left py-3 px-4 rounded-xl text-slate-300 hover:bg-slate-800 font-medium flex items-center space-x-3 transition';
+
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            document.getElementById(`nav-${tabName}`).className = 'w-full text-left py-3 px-4 rounded-xl bg-blue-600 text-white font-medium flex items-center space-x-3 transition shadow-sm';
+
+            const titles = {
+                dashboard: 'Institute Dashboard',
+                leads: 'Free Course Leads Database',
+                students: 'Students & Fee Tracker'
+            };
+            document.getElementById('page-title').innerText = titles[tabName];
+        }
+
+        // Notification Toast Handler
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 4000);
+        }
+        function hideToast() { document.getElementById('toast').classList.add('hidden'); }
+
+        // Modal Controls
+        function openAddLeadModal() { document.getElementById('leadModal').classList.remove('hidden'); }
+        function closeLeadModal() { document.getElementById('leadModal').classList.add('hidden'); document.getElementById('leadForm').reset(); }
+        function openAddStudentModal() { document.getElementById('studentModal').classList.remove('hidden'); }
+        function closeStudentModal() { document.getElementById('studentModal').classList.add('hidden'); document.getElementById('studentForm').reset(); }
+        function openConfigModal() { document.getElementById('configModal').classList.remove('hidden'); }
+        function closeConfigModal() { document.getElementById('configModal').classList.add('hidden'); }
+
+        // Save Supabase Configuration
+        function saveSupabaseConfig() {
+            const url = document.getElementById('configUrl').value.trim();
+            const key = document.getElementById('configKey').value.trim();
+            if(!url || !key) { showToast('Please enter both Supabase URL and Anon Key.'); return; }
+
+            try {
+                supabaseClient = window.supabase.createClient(url, key);
+                isCloudConnected = true;
+                document.getElementById('connection-status').innerText = 'Connected (Supabase)';
+                document.getElementById('connection-status').className = 'text-emerald-400 font-semibold';
+                closeConfigModal();
+                showToast('Successfully connected to Supabase!');
+                refreshData();
+            } catch (err) {
+                showToast('Connection failed: ' + err.message);
+            }
+        }
+
+        // Fetch & Render Data
+        async function refreshData() {
+            let leads = mockLeads;
+            let students = mockStudents;
+
+            if (isCloudConnected && supabaseClient) {
+                try {
+                    const { data: leadData, error: leadErr } = await supabaseClient.from('leads').select('*');
+                    if (!leadErr && leadData) leads = leadData;
+
+                    const { data: studentData, error: studentErr } = await supabaseClient.from('students').select('*');
+                    if (!studentErr && studentData) students = studentData;
+                } catch (e) {
+                    console.error('Cloud fetch error, falling back to local state:', e);
+                }
+            }
+
+            // Render Leads Table
+            const leadsBody = document.getElementById('leadsTableBody');
+            leadsBody.innerHTML = '';
+            leads.forEach(l => {
+                leadsBody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-4 font-semibold text-slate-800">${l.name || 'N/A'}</td>
+                        <td class="p-4">${l.phone || 'N/A'}</td>
+                        <td class="p-4">${l.email || 'N/A'}</td>
+                        <td class="p-4 text-slate-500">${l.address || 'N/A'}</td>
+                        <td class="p-4 text-slate-500">${l.dob || 'N/A'}</td>
+                        <td class="p-4"><span class="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold">${l.occupation || 'N/A'}</span></td>
+                    </tr>
+                `;
+            });
+
+            // Render Students Table & Calculate Revenue
+            const studentsBody = document.getElementById('studentsTableBody');
+            studentsBody.innerHTML = '';
+            let totalRevenueCollected = 0;
+
+            students.forEach(s => {
+                const total = Number(s.total_fee || 0);
+                const paid = Number(s.paid_fee || 0);
+                const remaining = total - paid;
+                totalRevenueCollected += paid;
+                const statusColor = remaining <= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
+                const statusText = remaining <= 0 ? 'Fully Paid' : 'Pending Dues';
+
+                studentsBody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-4 font-semibold text-slate-800">${s.name || 'N/A'}</td>
+                        <td class="p-4 text-slate-500">${s.phone || 'N/A'}</td>
+                        <td class="p-4 font-medium text-slate-700">${s.course || 'N/A'}</td>
+                        <td class="p-4 font-medium">₹${total.toLocaleString('en-IN')}</td>
+                        <td class="p-4 font-semibold text-emerald-600">₹${paid.toLocaleString('en-IN')}</td>
+                        <td class="p-4 font-semibold ${remaining > 0 ? 'text-rose-600' : 'text-slate-400'}">₹${remaining.toLocaleString('en-IN')}</td>
+                        <td class="p-4"><span class="${statusColor} px-2.5 py-1 rounded-lg text-xs font-semibold">${statusText}</span></td>
+                    </tr>
+                `;
+            });
+
+            // Update Stat Cards
+            document.getElementById('stat-leads').innerText = leads.length;
+            document.getElementById('stat-students').innerText = students.length;
+            document.getElementById('stat-revenue').innerText = '₹' + totalRevenueCollected.toLocaleString('en-IN');
+
+            // Update Chart
+            conversionChart.data.datasets[0].data = [leads.length, students.length];
+            conversionChart.update();
+        }
+
+        // Handle Form Submissions
+        async function handleLeadSubmit(e) {
+            e.preventDefault();
+            const newLead = {
+                name: document.getElementById('leadName').value,
+                phone: document.getElementById('leadPhone').value,
+                email: document.getElementById('leadEmail').value,
+                address: document.getElementById('leadAddress').value,
+                dob: document.getElementById('leadDob').value,
+                occupation: document.getElementById('leadOccupation').value
+            };
+
+            if (isCloudConnected && supabaseClient) {
+                const { error } = await supabaseClient.from('leads').insert([newLead]);
+                if (error) { showToast('Error saving lead: ' + error.message); return; }
+            } else {
+                mockLeads.push(newLead);
+            }
+
+            closeLeadModal();
+            showToast('New lead successfully added!');
+            refreshData();
+        }
+
+        async function handleStudentSubmit(e) {
+            e.preventDefault();
+            const newStudent = {
+                name: document.getElementById('studentName').value,
+                phone: document.getElementById('studentPhone').value,
+                course: document.getElementById('studentCourse').value,
+                total_fee: parseFloat(document.getElementById('studentTotalFee').value),
+                paid_fee: parseFloat(document.getElementById('studentPaidFee').value)
+            };
+
+            if (isCloudConnected && supabaseClient) {
+                const { error } = await supabaseClient.from('students').insert([newStudent]);
+                if (error) { showToast('Error saving student: ' + error.message); return; }
+            } else {
+                mockStudents.push(newStudent);
+            }
+
+            closeStudentModal();
+            showToast('New student admission successfully added!');
+            refreshData();
+        }
+
+        // Initial Data Load on Page Startup
+        window.onload = function() {
+            refreshData();
+        };
+    </script>
+</body>
+</html>
